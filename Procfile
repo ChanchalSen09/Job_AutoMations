@@ -1,0 +1,1 @@
+worker: python linkedin_job_alert_bot.py

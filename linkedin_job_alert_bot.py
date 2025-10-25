@@ -7,11 +7,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from dotenv import load_dotenv
 import os
+from http.server import HTTPServer, BaseHTTPRequestHandler
 load_dotenv()
 
 # === CONFIGURATION ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+PORT = int(os.getenv("PORT", 8000))
 
 # Updated keywords based on your resume - search for multiple role types
 SEARCH_KEYWORDS = [
@@ -461,6 +463,25 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(status_text, parse_mode="HTML")
 
+# Simple HTTP server for health checks
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Bot is running!')
+    
+    def log_message(self, format, *args):
+        pass  # Suppress HTTP logs
+
+
+def run_http_server():
+    """Run simple HTTP server for Render health checks"""
+    server = HTTPServer(('0.0.0.0', PORT), HealthCheckHandler)
+    print(f"✅ HTTP server running on port {PORT}")
+    server.serve_forever()
+
+
 
 def main():
     """Start the bot"""
@@ -472,7 +493,8 @@ def main():
     
     # Create the Application
     app = Application.builder().token(BOT_TOKEN).build()
-    
+    http_thread = threading.Thread(target=run_http_server, daemon=True)
+    http_thread.start()  
     # Add handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
